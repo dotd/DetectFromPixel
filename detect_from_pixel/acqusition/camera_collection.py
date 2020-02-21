@@ -13,6 +13,7 @@ import h5py
 import numpy as np
 import pyrealsense2 as rs
 import imageio
+from multiprocessing import Pool
 
 from definitions_detect_from_pixel import ROOT_DIR
 
@@ -95,9 +96,11 @@ def catch_frames(cam_pipe,
     n = len(os.listdir(output_dir))
     images = list()
 
+    time_signature = datetime.datetime.now().strftime('%Y%m%d-%H%M%S-%f')
+
     if rgb:
         n += 1
-        filename = "image_{:04}.rgb.jpg".format(n)
+        filename = "image_{}_{:06}.rgb.jpg".format(time_signature, n)
         images.append(filename)
         rgb_data = np.asanyarray(rgb.get_data())
         imageio.imwrite(osp.join(output_dir, filename), rgb_data)
@@ -110,7 +113,7 @@ def catch_frames(cam_pipe,
         depth_mm = np.multiply(depth_raw, depth_units / 1000.0)
 
         n += 1
-        filename = "image_{:04}.depth.h5".format(n)
+        filename = "image_{}_{:06}.depth.h5".format(time_signature, n)
         images.append(filename)
         with h5py.File(osp.join(output_dir, filename), "w") as f:
             f.create_dataset(
@@ -127,14 +130,14 @@ def catch_frames(cam_pipe,
         depth_array = np.asanyarray(depth.get_data())
 
         n += 1
-        filename = "image_{:04}.depth.jpg".format(n)
+        filename = "image_{}_{:06}.depth.jpg".format(time_signature, n)
         images.append(filename)
         depth_metric = convert_depth(depth_array, depth_scale, clamp_max)
         imageio.imwrite(osp.join(output_dir, filename), depth_metric)
 
         if post_proc:
             n += 1
-            filename = "image_{:04}.depth_pp.jpg".format(n)
+            filename = "image_{}_{:06}.depth_pp.jpg".format(time_signature, n)
             images.append(filename)
 
             depth_gt_frame = post_process_depth(depth)
@@ -184,7 +187,13 @@ def record(params):
     path = params.get("path")
 
     out = "{}_{}_{}".format(path, cam_type, camera_sn)
-    Path(out).mkdir(parents=True)
+    #Path(out).mkdir(parents=True, exist_ok=True)
+    try:
+        os.makedirs(out)
+    except OSError:
+        if not os.path.isdir(path):
+            raise
+
 
     cfg = camera_pipeline_config(camera_sn, params)
     cam_pipe = rs.pipeline()
@@ -270,20 +279,30 @@ def record(params):
     post_proc = params.get("post_proc")
 
     timeout = params.get("timeout")
-    t0 = time.time()
-    while (time.time() - t0) < timeout:
-        meta = catch_frames(
-            cam_pipe,
-            out,
-            depth_units,
-            depth_scale,
-            clamp_max,
-            post_proc,
-        )
-        if len(metadata["warmup"]) < warmup:
-            metadata["warmup"].append(meta)
-        else:
-            metadata["frames"].append(meta)
+    timeout_rest = params.get("timeout_rest")
+    timeout_repeats = params.get("timeout_repeats")
+
+    for repeat in range(timeout_repeats):
+        print("{} Start record {}".format(pid_str, repeat))
+        # doing the record
+        t0 = time.time()
+        while (time.time() - t0) < timeout:
+            meta = catch_frames(
+                cam_pipe,
+                out,
+                depth_units,
+                depth_scale,
+                clamp_max,
+                post_proc,
+            )
+            if len(metadata["warmup"]) < warmup:
+                metadata["warmup"].append(meta)
+            else:
+                metadata["frames"].append(meta)
+        # resting
+        print("{} Start sleep {}".format(pid_str, repeat))
+        if repeat < timeout_repeats - 1:
+            time.sleep(timeout_rest)
 
     cam_pipe.stop()
     print("{} stopped pipe for device {}".format(pid_str, camera_sn))
@@ -310,6 +329,7 @@ def main(args):
 
     path = "{}/data/{}/".format(ROOT_DIR, datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
 
+    """
     for device in devices:
         params = args.__dict__.copy()
         params["path"] = path
@@ -317,15 +337,30 @@ def main(args):
         params["cam_type"] = params["cam_name"].split(" ")[-1]
         params["camera_sn"] = device.get_info(rs.camera_info.serial_number)
         record(params)
+    """
+
+    params_pool = list()
+    for device in devices:
+        params = args.__dict__.copy()
+        params["path"] = path
+        params["cam_name"] = device.get_info(rs.camera_info.name)
+        params["cam_type"] = params["cam_name"].split(" ")[-1]
+        params["camera_sn"] = device.get_info(rs.camera_info.serial_number)
+        params_pool.append(params)
+
+    pool = Pool(processes=len(devices))
+    pool.map(record, params_pool)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--n_cameras", type=int, default=1, help="number of cameras")
-    parser.add_argument("--timeout", type=int, default=20, help="how long to operate")
+    parser.add_argument("--n_cameras", type=int, default=4, help="number of cameras")
+    parser.add_argument("--timeout", type=int, default=2, help="how long to operate")
+    parser.add_argument("--timeout_rest", type=int, default=10, help="how long to operate")
+    parser.add_argument("--timeout_repeats", type=int, default=2, help="how long to operate")
     parser.add_argument("--width", type=int, default=640, help="how long to operate")
     parser.add_argument("--height", type=int, default=480, help="how long to operate")
-    parser.add_argument("--fps", type=int, default=30, help="how long to operate")
+    parser.add_argument("--fps", type=int, default=15, help="how long to operate")
     parser.add_argument("--post_proc", type=bool, default=True, help="how long to operate")
 
     parser.add_argument("--warmup_frames_d415", type=int, default=6, help="how long to operate")
