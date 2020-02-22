@@ -13,6 +13,17 @@ class ColorDetector:
     def __init__(self):
         pass
 
+
+    def get_rgb2_threshold(self, threshold):
+        color_rgb2 = list()
+        # Green
+        rgb = [16, 158, 40]
+        minRGB = np.array([rgb[0] - threshold, rgb[1] - threshold, rgb[2] - threshold])
+        maxRGB = np.array([rgb[0] + threshold, rgb[1] + threshold, rgb[2] + threshold])
+        color_rgb2.append((minRGB, maxRGB, "green"))
+
+        return color_rgb2
+
     @staticmethod
     def rgb_detect(img, color_low, color_high):
         mask = cv2.inRange(img, color_low, color_high)
@@ -107,3 +118,16 @@ def identify_biggest_contour_bb(contours, convex_hull_flag=False):
     if convex_hull_flag and biggest_contour is not None:
         biggest_contour = cv2.convexHull(biggest_contour, False)
     return biggest_contour, biggest_score, biggest_bb
+
+
+def process_contour(contour):
+    x, y, w, h = cv2.boundingRect(contour)
+    return (x, y, w, h), w * h, contour, cv2.convexHull(contour, False)
+
+
+def identify_sorted_contours_bb(contours):
+    contours_rect = [process_contour(contour) for contour in contours]
+    contours_rect = sorted(contours_rect, key=lambda a: a[1])
+    return contours_rect
+
+
