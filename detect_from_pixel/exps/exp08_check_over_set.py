@@ -21,9 +21,10 @@ def load_images_to_memory(path_to_load, limit=int(1e6)):
         fullpath_h5 = "{}/{}".format(path_to_load,files[i + 1])
         img = cv2.imread(fullpath_rgb)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        img_hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
         fh5 = h5py.File(fullpath_h5, 'r')
         depth = fh5["depth"].value
-        images.append((img, depth))
+        images.append((img, depth, img_hsv))
         if i % 100 == 0:
             print("load images {}/{}".format(i, len(files)))
         cnt += 1
@@ -35,35 +36,42 @@ def load_images_to_memory(path_to_load, limit=int(1e6)):
 #folder = "/data/20200219_121911/_D415_839112061357/" # Standing red box
 #folder = "/data/20200220_122530/_D415_839112061357/" # Dark green small cube
 #folder = "/data/20200220_122519/_D415_839112061357/" # Dark green small cube
-folder = "/data/20200219_121407/_D415_839112060982/" # light green from above
+#folder = "/examples/" # light green from above
+folder = "/data/all3/" # light green from above
 
 path_to_load = "{}/{}/".format(ROOT_DIR, folder)
 plt.figure(1)
 cd = ColorDetector()
 images = load_images_to_memory(path_to_load, 1000)
 flag_show = True
+flag_show_only_pic = True
 yappi.start()
-for (i, (img, depth)) in enumerate(images):
+for (i, (img, depth, img_hsv)) in enumerate(images):
 
-    blobs, blobs_depth = cd.detect(img, depth, method="normalize")
+    blobs, blobs_depth, biggest_values_vec = cd.detect(img_hsv, depth, method="hsv")
 
     if flag_show:
+        for b in biggest_values_vec:
+            cv2.rectangle(img, (b[0],b[1]), (b[2], b[3]), [255, 255, 255],thickness=5)
         print(i)
-        plt.subplot(3, 2, 1)
-        plt.imshow(img)
-        plt.subplot(3, 2, 2)
-        plt.imshow(depth)
-        plt.subplot(3, 2, 3)
-        plt.imshow(blobs[0])
-        plt.subplot(3, 2, 4)
-        plt.imshow(blobs_depth[0])
-        if blobs[1] is not None:
-            plt.subplot(3, 2, 5)
-            plt.imshow(blobs[1])
-            plt.subplot(3, 2, 6)
-            plt.imshow(blobs_depth[1])
+        if flag_show_only_pic:
+            plt.imshow(img)
         else:
-            print("Identification problem")
+            plt.subplot(3, 2, 1)
+            plt.imshow(img)
+            plt.subplot(3, 2, 2)
+            plt.imshow(depth)
+            plt.subplot(3, 2, 3)
+            plt.imshow(blobs[0])
+            plt.subplot(3, 2, 4)
+            plt.imshow(blobs_depth[0])
+            if blobs[1] is not None:
+                plt.subplot(3, 2, 5)
+                plt.imshow(blobs[1])
+                plt.subplot(3, 2, 6)
+                plt.imshow(blobs_depth[1])
+            else:
+                print("Identification problem")
 
         plt.show(block=False)
         plt.pause(0.01)

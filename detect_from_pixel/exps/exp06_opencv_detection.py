@@ -1,8 +1,6 @@
 import numpy as np
 import cv2
 import yappi
-from torch.utils.tensorboard import SummaryWriter
-from definitions_segmentation import ROOT_DIR
 import datetime
 
 
@@ -13,7 +11,7 @@ colors = [((50, 0, 0), (255, 50, 50), "red"), ((0, 50, 0), (50, 255, 50), "green
 
 
 image_orig = cv2.imread('images/layout_1.raw.png')
-cv2.imshow(f"image_orig", image_orig)
+cv2.imshow("image_orig", image_orig)
 npy = np.load("images/pcl_00.npy")
 repeats = 1
 yappi.start()
@@ -22,7 +20,7 @@ cnt = 0
 images = []
 for r in range(repeats):
     for idx, color in enumerate(colors):
-        print(f"color={color[2]}")
+        print("color={}".format(color[2]))
         result = image_orig.copy()
         image = cv2.cvtColor(image_orig, cv2.COLOR_BGR2RGB)
         lower = np.array(color[0])
@@ -34,8 +32,8 @@ for r in range(repeats):
         #images.append((f"mask_{idx}", np.expand_dims(mask,0), cnt))
         #images.append((f"result_{idx}", result.transpose(2, 0, 1), cnt))
         cnt += 1
-        cv2.imshow(f"mask {color[2]}", mask)
-        cv2.imshow(f"result {color[2]}", result)
+        cv2.imshow("mask {}".format(color[2]), mask)
+        cv2.imshow("result {}".format(color[2]), result)
 
 yappi.stop()
 yappi.get_thread_stats().print_all()
