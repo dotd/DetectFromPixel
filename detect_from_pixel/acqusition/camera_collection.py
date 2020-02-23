@@ -2,13 +2,11 @@
 # -*- coding: utf-8 -*-
 import argparse
 import json
-import multiprocessing as multi
 import os
 import os.path as osp
 import time
 import glob
 import datetime
-from pathlib import Path
 import h5py
 import numpy as np
 import pyrealsense2 as rs
@@ -82,6 +80,7 @@ def catch_frames(cam_pipe,
                  depth_scale,
                  clamp_max,
                  post_proc,
+                 camera_sn
                  ):
 
     frames = cam_pipe.wait_for_frames()
@@ -100,7 +99,7 @@ def catch_frames(cam_pipe,
 
     if rgb:
         n += 1
-        filename = "image_{}_{:06}.rgb.jpg".format(time_signature, n)
+        filename = "image_{}_{:06}_{}.rgb.jpg".format(time_signature, n, camera_sn)
         images.append(filename)
         rgb_data = np.asanyarray(rgb.get_data())
         imageio.imwrite(osp.join(output_dir, filename), rgb_data)
@@ -113,7 +112,7 @@ def catch_frames(cam_pipe,
         depth_mm = np.multiply(depth_raw, depth_units / 1000.0)
 
         n += 1
-        filename = "image_{}_{:06}.depth.h5".format(time_signature, n)
+        filename = "image_{}_{:06}_{}.depth.h5".format(time_signature, n, camera_sn)
         images.append(filename)
         with h5py.File(osp.join(output_dir, filename), "w") as f:
             f.create_dataset(
@@ -130,14 +129,14 @@ def catch_frames(cam_pipe,
         depth_array = np.asanyarray(depth.get_data())
 
         n += 1
-        filename = "image_{}_{:06}.depth.jpg".format(time_signature, n)
+        filename = "image_{}_{:06}_{}.depth.jpg".format(time_signature, n, camera_sn)
         images.append(filename)
         depth_metric = convert_depth(depth_array, depth_scale, clamp_max)
         imageio.imwrite(osp.join(output_dir, filename), depth_metric)
 
         if post_proc:
             n += 1
-            filename = "image_{}_{:06}.depth_pp.jpg".format(time_signature, n)
+            filename = "image_{}_{:06}_{}.depth_pp.jpg".format(time_signature, n, camera_sn)
             images.append(filename)
 
             depth_gt_frame = post_process_depth(depth)
@@ -193,7 +192,6 @@ def record(params):
     except OSError:
         if not os.path.isdir(path):
             raise
-
 
     cfg = camera_pipeline_config(camera_sn, params)
     cam_pipe = rs.pipeline()
@@ -294,6 +292,7 @@ def record(params):
                 depth_scale,
                 clamp_max,
                 post_proc,
+                camera_sn
             )
             if len(metadata["warmup"]) < warmup:
                 metadata["warmup"].append(meta)
@@ -328,16 +327,6 @@ def main(args):
         raise RuntimeError("expecting {} RealSense cameras, but only detected {}".format(args.n_cameras, len(devices)))
 
     path = "{}/data/{}/".format(ROOT_DIR, datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
-
-    """
-    for device in devices:
-        params = args.__dict__.copy()
-        params["path"] = path
-        params["cam_name"] = device.get_info(rs.camera_info.name)
-        params["cam_type"] = params["cam_name"].split(" ")[-1]
-        params["camera_sn"] = device.get_info(rs.camera_info.serial_number)
-        record(params)
-    """
 
     params_pool = list()
     for device in devices:

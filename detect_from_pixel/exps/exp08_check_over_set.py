@@ -52,7 +52,7 @@ for (i, (img, depth, img_hsv)) in enumerate(images):
 
     if flag_show:
         for b in biggest_values_vec:
-            cv2.rectangle(img, (b[0],b[1]), (b[2], b[3]), [255, 255, 255],thickness=5)
+            cv2.rectangle(img, (b[0], b[1]), (b[2], b[3]), [255, 255, 255],thickness=5)
         print(i)
         if flag_show_only_pic:
             plt.imshow(img)
