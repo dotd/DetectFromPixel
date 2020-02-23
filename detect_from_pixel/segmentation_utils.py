@@ -10,11 +10,16 @@ class ColorDetector:
     colors_normalize = [(np.array([0.3, 0, 0, 0.2]), np.array([1, 0.2, 0.2, 0.8]), "red"),
                         (np.array([0, 0.3, 0, 0.2]), np.array([0.4, 1, 0.3, 0.9]), "green")]
 
+    #colors_hsv = [(np.array([155, 155, 84]), np.array([185, 255, 255]), "red"),
+    #              (np.array([55, 52, 72]), np.array([80, 255, 255]), "green")]
+    colors_hsv = [(np.array([0, 88, 84]), np.array([20, 255, 255]), "red"),
+                  (np.array([55, 52, 72]), np.array([80, 255, 255]), "green")]
+
     def __init__(self):
         pass
 
     @staticmethod
-    def rgb_detect(img, color_low, color_high):
+    def detect_by_bands(img, color_low, color_high):
         mask = cv2.inRange(img, color_low, color_high)
         mask = cv2.medianBlur(mask, 7)
         return mask
@@ -37,18 +42,23 @@ class ColorDetector:
             colors = ColorDetector.colors_rgb
         elif method == "normalize":
             colors = ColorDetector.colors_normalize
+        elif method == "hsv":
+            colors = ColorDetector.colors_hsv
         return colors
 
     def detect(self, img_orig, img_depth, method):
         img_colors = list()
         depth = list()
+        biggest_values_vec = list()
         colors = self.get_colors_by_method(method)
         for idx, color in enumerate(colors):
             img = img_orig
             if method == "rgb":
-                mask = self.rgb_detect(img, color[0], color[1])
+                mask = self.detect_by_bands(img, color[0], color[1])
             elif method == "normalize":
                 mask = self.normalize_detect(img, color[0], color[1])
+            elif method == "hsv":
+                mask = self.detect_by_bands(img, color[0], color[1])
             contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
             biggest_contour, biggest_score, biggest_values = identify_biggest_contour_bb(contours,
                                                                                             convex_hull_flag=True)
@@ -63,7 +73,8 @@ class ColorDetector:
 
             img_colors.append(biggest_bb)
             depth.append(biggest_depth)
-        return img_colors, depth
+            biggest_values_vec.append(biggest_values)
+        return img_colors, depth, biggest_values_vec
 
 
 def get_values_in_contour(image, contour):
