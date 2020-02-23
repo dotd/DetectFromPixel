@@ -10,8 +10,6 @@ class ColorDetector:
     colors_normalize = [(np.array([0.3, 0, 0, 0.2]), np.array([1, 0.2, 0.2, 0.8]), "red"),
                         (np.array([0, 0.3, 0, 0.2]), np.array([0.4, 1, 0.3, 0.9]), "green")]
 
-    #colors_hsv = [(np.array([155, 155, 84]), np.array([185, 255, 255]), "red"),
-    #              (np.array([55, 52, 72]), np.array([80, 255, 255]), "green")]
     colors_hsv = [(np.array([0, 88, 84]), np.array([20, 255, 255]), "red"),
                   (np.array([55, 52, 72]), np.array([80, 255, 255]), "green")]
 
