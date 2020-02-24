@@ -346,7 +346,7 @@ if __name__ == "__main__":
     parser.add_argument("--n_cameras", type=int, default=4, help="number of cameras")
     parser.add_argument("--timeout", type=int, default=2, help="how long to operate")
     parser.add_argument("--timeout_rest", type=int, default=10, help="how long to operate")
-    parser.add_argument("--timeout_repeats", type=int, default=2, help="how long to operate")
+    parser.add_argument("--timeout_repeats", type=int, default=1, help="how long to operate")
     parser.add_argument("--width", type=int, default=640, help="how long to operate")
     parser.add_argument("--height", type=int, default=480, help="how long to operate")
     parser.add_argument("--fps", type=int, default=15, help="how long to operate")
